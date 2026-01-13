@@ -32,7 +32,7 @@ void coords()
 
 void setup() 
 {
-  // put your setup code here, to run once:
+  // setup code , run once:
   Serial.begin(115200);
 
   //GPS
@@ -61,7 +61,7 @@ void setup()
 
 void loop() 
 {
-  // put your main code here, to run repeatedly:
+  //code here, to run repeatedly:
 
   while (gpsSerial.available())
   {
@@ -72,6 +72,74 @@ void loop()
   {
     lat = gps.location.lat();
     lng = gps.location.lng();
+  }
+
+  webServer.handleClient();
+}
+#include <WiFi.h>
+#include <WebServer.h>
+#include <TinyGPS++.h>
+
+#define RX2 16
+#define TX2 17
+
+TinyGPSPlus gps;
+HardwareSerial gpsSerial(2);
+
+double lat = 0.0;
+double lng = 0.0;
+
+const char* ssid = "ssid";
+const char* password = "pwd";
+
+WebServer webServer(80);
+
+/* JSON endpoint */
+void location() {
+  String json = "{";
+  json += "\"lat\":" + String(lat, 6) + ",";
+  json += "\"lng\":" + String(lng, 6);
+  json += "}";
+
+  webServer.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // GPS
+  gpsSerial.begin(9600, SERIAL_8N1, RX2, TX2);
+  Serial.println("GPS started");
+
+  // WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFi connected");
+  Serial.println(WiFi.localIP());
+
+  // HTTP route
+  webServer.on("/location", location);
+  webServer.begin();
+  Serial.println("ESP32 HTTP server started");
+}
+
+void loop() {
+  while (gpsSerial.available()) {
+    gps.encode(gpsSerial.read());
+  }
+
+  if (gps.location.isUpdated()) {
+    lat = gps.location.lat();
+    lng = gps.location.lng();
+
+    Serial.print("LAT: ");
+    Serial.print(lat, 6);
+    Serial.print(" LNG: ");
+    Serial.println(lng, 6);
   }
 
   webServer.handleClient();
